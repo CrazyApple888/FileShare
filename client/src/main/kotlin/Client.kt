@@ -1,30 +1,49 @@
 import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.net.InetAddress
 import java.net.Socket
+import kotlin.jvm.Throws
 
 class Client(
-    address: InetAddress,
-    port: Int
+    private val address: InetAddress,
+    private val port: Int
 ) {
 
-    private val socket = Socket(address, port)
+    private lateinit var socket: Socket
 
     fun start(file: File) {
-        socket.getOutputStream().write(FileShareDatagram(file).prepareMessage())
-        //val fis = DataInputStream(file.inputStream())//FileInputStream(file)
+        try {
+            socket = Socket(address, port)
+        } catch (_: Exception) {
+            println("Can't open socket")
+            return
+        }
+
+        val writer = DataOutputStream(socket.getOutputStream())
+        val prepareMessage = FileShareProtocol(file).prepareMessage()
+        writer.writeInt(prepareMessage.size)
+        writer.write(prepareMessage)
         val fis = FileInputStream(file)
 
-        val buffer = ByteArray(512)
-        while (!socket.isClosed) {
-            val res = fis.read(buffer)
-            if (-1 == res) {
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var bytesRead = 0
+        while (true) {
+            bytesRead = fis.read(buffer, 0, DEFAULT_BUFFER_SIZE)
+            if (-1 == bytesRead) {
                 break
             }
-            socket.getOutputStream().write(buffer, 0, res)
+            writer.write(buffer, 0, bytesRead)
         }
-        socket.getOutputStream().close()
-        socket.close()
+
+        val input = socket.getInputStream()
+        while (true) {
+            bytesRead = input.read(buffer, 0, DEFAULT_BUFFER_SIZE)
+            if (DEFAULT_BUFFER_SIZE != bytesRead) {
+                break
+            }
+        }
+        println("${file.name} status: ${String(buffer, 0, bytesRead)}")
     }
 }
