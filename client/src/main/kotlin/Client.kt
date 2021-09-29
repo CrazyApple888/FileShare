@@ -1,10 +1,8 @@
-import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.net.InetAddress
 import java.net.Socket
-import kotlin.jvm.Throws
 
 class Client(
     private val address: InetAddress,
@@ -28,9 +26,9 @@ class Client(
         val fis = FileInputStream(file)
 
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        var bytesRead = 0
+        var bytesRead: Int
         while (true) {
-            bytesRead = fis.read(buffer, 0, DEFAULT_BUFFER_SIZE)
+            bytesRead = fis.read(buffer, 0, 10)
             if (-1 == bytesRead) {
                 break
             }

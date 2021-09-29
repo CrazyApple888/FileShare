@@ -26,8 +26,6 @@ class FileShareProtocol(
                 return false
             }
 
-            //TODO check filename with regex
-
             return true
         }
     }

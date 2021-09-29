@@ -3,8 +3,6 @@ import java.io.*
 import java.net.ServerSocket
 import java.net.Socket
 import java.nio.charset.Charset
-import java.nio.file.Files
-import kotlin.io.path.Path
 
 class Server(port: Int) {
     private val serverSocket = ServerSocket(port)
@@ -45,7 +43,7 @@ class Server(port: Int) {
                 return
             }
             createUploads()
-            file = createFile(fileName)
+            createFile()
             val fos = FileOutputStream(file!!)
             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
             try {
@@ -59,8 +57,6 @@ class Server(port: Int) {
             } catch (_: IOException) {
                 //Timeout expired, download complete
             }
-            isFinished = true
-
             val msg = if (isDownloadSuccessful()) {
                 FileShareProtocol.SUCCESS_MESSAGE.toByteArray(Charset.defaultCharset())
             } else {
@@ -71,6 +67,7 @@ class Server(port: Int) {
             source.close()
             reader.close()
 
+            isFinished = true
             println("File $fileName has been downloaded!")
         }
 
@@ -78,10 +75,13 @@ class Server(port: Int) {
             var cycleCounter: Long = 0
             var speedBeforeMeasure: Long = 0
             var averageSpeed = 0.0
-            do {
+            while (true) {
                 delay(delayMillis)
                 if (null == file) {
                     continue
+                }
+                if (isFinished) {
+                    break
                 }
                 val currentSpeed = (file!!.length().toDouble() - speedBeforeMeasure) / (delayMillis / 1000)
                 cycleCounter++
@@ -91,21 +91,26 @@ class Server(port: Int) {
                             "Average download speed for ${file!!.name}: $averageSpeed bytes/second"
                 )
                 speedBeforeMeasure = file!!.length()
-            } while (!isFinished)
+            }
         }
 
-        private fun createFile(fileName: String): File {
-            if (Files.exists(Path("uploads/$fileName"))) {
-                val fileExtension = fileName.split('.').last()
-                val localName = fileName.dropLast(fileExtension.length + 1)
+        private fun createFile() {
+            if (!File("uploads/$fileName").createNewFile()) {
+                val fileNameParts = fileName.split('.')
+                var fileExtension = ""
+                var localName = fileName
+                if (fileNameParts.size > 1) {
+                    fileExtension = '.' + fileNameParts.last()
+                    localName = fileName.dropLast(fileExtension.length + 1)
+                }
                 var index = 1
-                while (Files.exists(Path("uploads/$localName$index.$fileExtension"))) {
+                while (!File("uploads/$localName($index)$fileExtension").createNewFile()) {
                     index++
                 }
-                return File("uploads/$localName$index.$fileExtension")
+                fileName = "$localName($index)$fileExtension"
             }
 
-            return File("uploads/$fileName")
+            file = File("uploads/$fileName")
         }
 
         private fun getPrepareMessage(reader: DataInputStream): String {
