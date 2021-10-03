@@ -10,5 +10,9 @@ fun main(args: Array<String>) {
             return
         }
     }
+    if (1023 >= port) {
+        println("Invalid port")
+        return
+    }
     Server(port).start()
 }

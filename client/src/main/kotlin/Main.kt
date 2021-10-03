@@ -1,5 +1,6 @@
 import java.io.File
 import java.net.InetAddress
+import java.net.UnknownHostException
 import java.util.concurrent.Executors
 
 // filename address port
@@ -12,23 +13,34 @@ fun main(args: Array<String>) {
         println("Required: filename serverAddress port")
         return
     }
-    val file = File(args[0])
-    val address = args[1]
-    val port = try {
-        args[0].toInt()
-    } catch (exc: NumberFormatException) {
-        println("Invalid port")
+    val file = try {
+        File(args[0])
+    } catch (_: NullPointerException) {
+        println("File doesn't exist")
         return
     }
-
     if (!file.exists()) {
         println("Wrong filename or path")
         return
     }
+    val address = args[1]
+    val port = try {
+        args[2].toInt()
+    } catch (exc: NumberFormatException) {
+        println("Invalid port")
+        return
+    }
+    if (1023 >= port) {
+        println("Invalid port")
+        return
+    }
 
-    Client(InetAddress.getByName(address), port).start(file)
-    //Comment this /\ and
-    //Uncomment this \/ and write your files for easy stress test
+    try {
+        Client(InetAddress.getByName(address), port).start(file)
+    } catch (_: UnknownHostException) {
+        println("Unknown host")
+        return
+    }
 
     /*val threadPool = Executors.newCachedThreadPool()
     for (i in 0..5) {

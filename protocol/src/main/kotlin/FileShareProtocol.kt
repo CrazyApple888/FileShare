@@ -13,12 +13,22 @@ class FileShareProtocol(
         const val FAIL_MESSAGE = "FAIL\r\n"
         const val AFTER_SEND_TIMEOUT = 1000
 
-        fun parseFileName(prepareMessage: String) = prepareMessage.split(' ')[1]
+        /**
+        * @return on success, returns file name. Otherwise - empty string
+        */
+        fun parseFileName(prepareMessage: String) = if (checkPrepareMessage(prepareMessage)) {
+            prepareMessage.split(' ')[1]
+        } else ""
 
-        fun parseFileSize(prepareMessage: String) = prepareMessage.trim().split(' ')[2].toLong()
+        /**
+         * @return on success, returns file size. Otherwise -1
+         */
+        fun parseFileSize(prepareMessage: String) = if (checkPrepareMessage(prepareMessage)) {
+            prepareMessage.trim().split(' ')[2].toLong()
+        } else -1
 
-        fun checkPrepareMessage(message: String) : Boolean {
-            val messageAttributes = message.split(" ")
+        private fun checkPrepareMessage(prepareMessage: String): Boolean {
+            val messageAttributes = prepareMessage.split(" ")
             if (messageAttributes.size != 3) {
                 return false
             }

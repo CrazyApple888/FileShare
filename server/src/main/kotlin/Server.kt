@@ -44,7 +44,7 @@ class Server(port: Int) {
             }
             createUploads()
             createFile()
-            val fos = FileOutputStream(file!!)
+            val receiveFileStream = FileOutputStream(file!!)
             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
             try {
                 while (!source.isClosed) {
@@ -52,10 +52,17 @@ class Server(port: Int) {
                     if (-1 == bytesRead) {
                         break
                     }
-                    fos.write(buffer, 0, bytesRead)
+                    receiveFileStream.write(buffer, 0, bytesRead)
                 }
             } catch (_: IOException) {
                 //Timeout expired, download complete
+            }
+            if (source.isClosed) {
+                isFinished = true
+                println("File $fileName hasn't been downloaded. Socket closed")
+                reader.close()
+                receiveFileStream.close()
+                return
             }
             val msg = if (isDownloadSuccessful()) {
                 FileShareProtocol.SUCCESS_MESSAGE.toByteArray(Charset.defaultCharset())
@@ -63,7 +70,7 @@ class Server(port: Int) {
                 FileShareProtocol.FAIL_MESSAGE.toByteArray(Charset.defaultCharset())
             }
             source.getOutputStream().write(msg, 0, msg.size)
-            fos.close()
+            receiveFileStream.close()
             source.close()
             reader.close()
 
@@ -101,7 +108,7 @@ class Server(port: Int) {
                 var localName = fileName
                 if (fileNameParts.size > 1) {
                     fileExtension = '.' + fileNameParts.last()
-                    localName = fileName.dropLast(fileExtension.length + 1)
+                    localName = fileName.dropLast(fileExtension.length)
                 }
                 var index = 1
                 while (!File("uploads/$localName($index)$fileExtension").createNewFile()) {
@@ -137,15 +144,12 @@ class Server(port: Int) {
         }
 
         private fun parsePrepareMessage(prepareMessage: String): Boolean {
-            if (FileShareProtocol.checkPrepareMessage(prepareMessage)) {
-                with(prepareMessage) {
-                    fileName = FileShareProtocol.parseFileName(this)
-                    fileSize = FileShareProtocol.parseFileSize(this)
-                }
-                return true
+            with(prepareMessage) {
+                fileName = FileShareProtocol.parseFileName(this)
+                fileSize = FileShareProtocol.parseFileSize(this)
             }
 
-            return false
+            return fileName.isNotEmpty() && fileSize != 0L
         }
 
         private fun isDownloadSuccessful() = file?.length() == fileSize
